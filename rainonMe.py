@@ -2,9 +2,14 @@ import requests
 #import sys #TODO Command line input
 from bs4 import BeautifulSoup
 import traceback
+from datetime import datetime
 
+###########################################################
+#                  GLOBAL VARIABLES                       #
+###########################################################
 debug = True  #For (gasp) debugging statements
 forecasts = dict() #Dict to store forecasts
+
 
 #TODO Turn into args inputs for modularity
 #try:
@@ -30,25 +35,39 @@ def getTitles(weatherList):
         titles.append(title.strip())
     return titles
 
+
+#TODO Issue (A): Bad weather alert resulted in an additional container that was logged by BS4 without temp section. This caused errors in the below
+#   function. Need to increase precison of web scraping to harden code.
 def getTemps(weatherList):
     temps = []
 
     for item in weatherList:
-        tempname = ''
+        tempname = None
 
         if item.find(class_="temp temp-low") is not None:
             tempname = item.find(class_="temp temp-low")
         elif item.find(class_="temp temp-high") is not None:
             tempname = item.find(class_="temp temp-high")
         elif debug == True:
-            print("Unable to find temp. An exception is probably about to be thrown.")
-
-        for content in tempname.contents:
+            print("Unable to find temperature within getTemps function. Attempting to log relevant HTML to rainonMe.log.")
             try:
-                if(content[0] == 'L' or content[0] == 'H'):
-                    temps.append(content.string)
-            except KeyError:
-                pass
+                with open('rainonMe.log', 'a') as f:
+                    f.write(datetime.now().strftime("%m_%d_%Y_%H_%M_%S-"))
+                    f.write(item.prettify())
+                    f.write('\n \n \n')
+            except:
+                print('Unable to log error within getTemps function.')
+            finally:
+                print('An exception is likely to be thrown.')
+                temps.append('N/A')
+
+        if tempname is not None:
+            for content in tempname.contents:
+                try:
+                    if(content[0] == 'L' or content[0] == 'H'):
+                        temps.append(content.string)
+                except KeyError:
+                    pass
 
     return temps
 
@@ -84,6 +103,7 @@ soup = BeautifulSoup(response.content, 'html.parser')
 seven_day = soup.find(id="seven-day-forecast-list")
 forecast_items = seven_day.find_all(class_="tombstone-container")
 
+#Pass forecast_items list to these 3 functions to pull out data into more specific lists of items
 titles = getTitles(forecast_items)
 
 temps = getTemps(forecast_items)
@@ -94,12 +114,13 @@ descs = getDescriptions(forecast_items)
 for x in range(len(titles)):
     forecasts.update({x : [titles[x], temps[x], descs[x]]})
 
-for x in range(3):
-    first, second, third = forecasts[x]
-    print(first)
-    print(second)
-    print(third + "\n")
+if debug == True:
+    for x in range(3):
+        first, second, third = forecasts[x]
+        print(first)
+        print(second)
+        print(third + "\n")
 
 
 if debug == True:
-    print("!!!It worked!!! End of program!!!")
+    print("!!! It worked!!! End of program!!!")

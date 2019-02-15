@@ -3,13 +3,15 @@ import requests
 from bs4 import BeautifulSoup
 import traceback
 from datetime import datetime
+import sms
 
 ###########################################################
 #                  GLOBAL VARIABLES                       #
 ###########################################################
-debug = True  #For (gasp) debugging statements
-forecasts = dict() #Dict to store forecasts
-
+debug = True  # For (gasp) debugging statements
+forecasts = dict() # Dict to store forecasts
+lat = "41.657" # To be modified for user input in final product
+lon = "-91.5265" # To be modified for user input in final product
 
 #TODO Turn into args inputs for modularity
 #try:
@@ -18,8 +20,7 @@ forecasts = dict() #Dict to store forecasts
 #except:
     #print("Something went wrong. Please check inputs and try again")
     #exit()
-lat = "41.657"
-lon = "-91.5265"
+
 
 def getTitles(weatherList):
     titles = []
@@ -37,7 +38,7 @@ def getTitles(weatherList):
 
 
 #TODO Issue (A): Bad weather alert resulted in an additional container that was logged by BS4 without temp section. This caused errors in the below
-#   function. Need to increase precison of web scraping to harden code.
+#   function. Modified way function collects information. Watch for errors.
 def getTemps(weatherList):
     temps = []
 
@@ -52,7 +53,7 @@ def getTemps(weatherList):
             print("Unable to find temperature within getTemps function. Attempting to log relevant HTML to rainonMe.log.")
             try:
                 with open('rainonMe.log', 'a') as f:
-                    f.write(datetime.now().strftime("%m_%d_%Y_%H_%M_%S-"))
+                    f.write(datetime.now().strftime("%m_%d_%Y_%H_%M"))
                     f.write(item.prettify())
                     f.write('\n \n \n')
             except:
@@ -99,20 +100,21 @@ except:
     traceback.print_exc()
     exit()
 
+#Use Beautiful Soup to sort through http response
 soup = BeautifulSoup(response.content, 'html.parser')
 seven_day = soup.find(id="seven-day-forecast-list")
 forecast_items = seven_day.find_all(class_="tombstone-container")
 
 #Pass forecast_items list to these 3 functions to pull out data into more specific lists of items
 titles = getTitles(forecast_items)
-
 temps = getTemps(forecast_items)
-
 descs = getDescriptions(forecast_items)
 
-
+#Load lists into dictionary for storage
 for x in range(len(titles)):
     forecasts.update({x : [titles[x], temps[x], descs[x]]})
+
+sms.sendMessage(forecasts)
 
 if debug == True:
     for x in range(3):
@@ -120,7 +122,4 @@ if debug == True:
         print(first)
         print(second)
         print(third + "\n")
-
-
-if debug == True:
     print("!!! It worked!!! End of program!!!")
